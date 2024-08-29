@@ -13,6 +13,8 @@ const createToken = async (
   description,
   extended
 ) => {
+  console.log("Hello", { name, symbol, initAmountIn, description, extended });
+
   if (typeof window.ethereum !== "undefined") {
     const web3 = new Web3(window.ethereum);
     await window.ethereum.enable();
@@ -24,11 +26,12 @@ const createToken = async (
 
     try {
       const creationFee = await getCreationFee(contract);
-      const valueToSend = parseInt(initAmountIn) + parseInt(creationFee);
+      const valueToSend = parseFloat(initAmountIn) + parseFloat(creationFee);
+      const nativeETH = parseFloat(initAmountIn);
 
       const result = await contract.methods
         .createToken(name, symbol, initAmountIn, description, extended)
-        .send({ from: account, value: valueToSend });
+        .send({ from: account, value: valueToSend, nativeETH: nativeETH });
 
       console.log("Token Created:", result);
     } catch (error) {
@@ -69,27 +72,63 @@ const swapEthForTokens = async (
   }
 };
 
-const swapTokensForEth = async (token, amountIn, amountOutMin, to, deadline) => {
-    if (typeof window.ethereum !== 'undefined') {
-        const web3 = new Web3(window.ethereum);
-        await window.ethereum.enable();
+const swapTokensForEth = async (
+  token,
+  amountIn,
+  amountOutMin,
+  to,
+  deadline
+) => {
+  if (typeof window.ethereum !== "undefined") {
+    const web3 = new Web3(window.ethereum);
+    await window.ethereum.enable();
 
-        const contract = new web3.eth.Contract(contractABI, contractAddress);
+    const contract = new web3.eth.Contract(contractABI, contractAddress);
 
-        const accounts = await web3.eth.getAccounts();
-        const account = accounts[0];
+    const accounts = await web3.eth.getAccounts();
+    const account = accounts[0];
 
-        try {
-            const result = await contract.methods.swapTokensForEth(token, amountIn, amountOutMin, to, deadline)
-                .send({ from: account });
+    try {
+      const result = await contract.methods
+        .swapTokensForEth(token, amountIn, amountOutMin, to, deadline)
+        .send({ from: account });
 
-            console.log('Swap Successful:', result);
-        } catch (error) {
-            console.error('Error swapping tokens for ETH:', error);
-        }
-    } else {
-        console.log('Ethereum wallet is not connected');
+      console.log("Swap Successful:", result);
+    } catch (error) {
+      console.error("Error swapping tokens for ETH:", error);
     }
+  } else {
+    console.log("Ethereum wallet is not connected");
+  }
 };
 
-export { createToken, swapEthForTokens,swapTokensForEth };
+const getPool = async (tokenAddress) => {
+  if (typeof window.ethereum !== "undefined") {
+    const web3 = new Web3(window.ethereum);
+    await window.ethereum.enable();
+
+    const contract = new web3.eth.Contract(contractABI, contractAddress);
+
+    const accounts = await web3.eth.getAccounts();
+    const account = accounts[0];
+
+    try {
+      const pool = await contract.methods.getPool(tokenAddress).call();
+      
+      const poolWithStrings = Object.fromEntries(
+          Object.entries(pool).map(([key, value]) => 
+              typeof value === 'bigint' ? [key, value.toString()] : [key, value]
+          )
+      );
+
+      return poolWithStrings;
+  } catch (error) {
+      console.error("Error fetching pool:", error);
+      throw error;
+  }
+  } else {
+    console.log("Ethereum wallet is not connected");
+  }
+};
+
+export { createToken, swapEthForTokens, swapTokensForEth, getPool };

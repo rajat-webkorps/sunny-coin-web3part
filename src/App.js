@@ -93,7 +93,7 @@
 import React, { useState, useEffect } from "react";
 import Web3 from "web3";
 import { contractABI, contractAddress } from "./web3/contractConfigs";
-import { createToken, swapEthForTokens,swapTokensForEth } from "./web3/contractMethods"; // Adjust the path as needed
+import { createToken, swapEthForTokens,swapTokensForEth,getPool } from "./web3/contractMethods"; // Adjust the path as needed
 import "./App.css";
 
 const App = () => {
@@ -116,6 +116,8 @@ const App = () => {
 
   const [T2EamountIn, setT2EAmountIn] = useState();
   const [T2EamountOutMin, setT2EAmountOutMin] = useState();
+
+  const [poolInfo, setPoolInfo] = useState(null);
 
   useEffect(() => {
     if (window.ethereum) {
@@ -259,6 +261,15 @@ const App = () => {
       alert("wallet connected")
     }
 };
+const handleGetPool = async () => {
+  try {
+      const pool = await getPool(tokenAddress);
+      setPoolInfo(pool);
+  } catch (error) {
+      console.error("Error fetching pool information:", error);
+      alert("Failed to fetch pool information. Please check the console for details.");
+  }
+};
 
   return (
     <div className="app-container">
@@ -351,6 +362,25 @@ const App = () => {
                 <input type="number" value={T2EamountOutMin} onChange={(e) => setT2EAmountOutMin(e.target.value)} placeholder="Minimum Amount Out (ETH)" required />
                 <button type="submit">Swap for ETH</button>
             </form>
+
+            <h2>Get Pool Information</h2>
+            <div className="form-group">
+                <input
+                    type="text"
+                    value={tokenAddress}
+                    onChange={(e) => setTokenAddress(e.target.value)}
+                    placeholder="Token Address"
+                    required
+                />
+                <button onClick={handleGetPool}>Get Pool Info</button>
+            </div>
+
+            {poolInfo && (
+                <div className="pool-info">
+                    <h3>Pool Information:</h3>
+                    <pre>{JSON.stringify(poolInfo, null, 2)}</pre>
+                </div>
+            )}
     </div>
   );
 };
