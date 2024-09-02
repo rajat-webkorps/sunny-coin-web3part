@@ -1,100 +1,14 @@
-// import React, { useState } from 'react';
-// import {createToken,swapEthForTokens} from './web3/contractMethods'; // Adjust the path as needed
-
-// const App = () => {
-//     const [name, setName] = useState('');
-//     const [symbol, setSymbol] = useState('');
-//     const [initAmountIn, setInitAmountIn] = useState(0);
-//     const [description, setDescription] = useState('');
-//     const [extended, setExtended] = useState('');
-
-//     const [token, setToken] = useState('');
-//     const [amountIn, setAmountIn] = useState(0);
-//     const [amountOutMin, setAmountOutMin] = useState(0);
-//     const [to, setTo] = useState('');
-//     const [deadline, setDeadline] = useState(0);
-
-//     const handleSubmit = async (e) => {
-//         e.preventDefault(); // Prevent page refresh
-//         try {
-//             await createToken(name, symbol, initAmountIn, description, extended);
-//             alert('Token created successfully!');
-//         } catch (error) {
-//             console.error('Error creating token:', error);
-//             alert('Failed to create token. Please check the console for details.');
-//         }
-//     };
-
-//     const handleEthSwap = async () => {
-//       try {
-//           await swapEthForTokens(token, amountIn, amountOutMin, to, deadline);
-//           alert('Swap successful!');
-//       } catch (error) {
-//           console.error('Error swapping tokens:', error);
-//           alert('Failed to swap tokens. Please check the console for details.');
-//       }
-//   };
-
-//     return (
-//         <div className="App">
-//             <h1>Create a New Token</h1>
-//             <form onSubmit={handleSubmit}>
-//                 <input
-//                     type="text"
-//                     value={name}
-//                     onChange={(e) => setName(e.target.value)}
-//                     placeholder="Token Name"
-//                     required
-//                 />
-//                 <input
-//                     type="text"
-//                     value={symbol}
-//                     onChange={(e) => setSymbol(e.target.value)}
-//                     placeholder="Token Symbol"
-//                     required
-//                 />
-//                 <input
-//                     type="number"
-//                     value={initAmountIn}
-//                     onChange={(e) => setInitAmountIn(e.target.value)}
-//                     placeholder="Initial Amount In (ETH)"
-//                     required
-//                 />
-//                 <input
-//                     type="text"
-//                     value={description}
-//                     onChange={(e) => setDescription(e.target.value)}
-//                     placeholder="Description"
-//                 />
-//                 <input
-//                     type="text"
-//                     value={extended}
-//                     onChange={(e) => setExtended(e.target.value)}
-//                     placeholder="Extended Info"
-//                 />
-//                 <button type="submit">Create Token</button>
-//             </form>
-
-//             <h2>Swap ETH for Tokens</h2>
-//             <form onSubmit={(e) => { e.preventDefault(); handleEthSwap(); }}>
-//                 <input type="text" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Token Address" required />
-//                 <input type="number" value={amountIn} onChange={(e) => setAmountIn(e.target.value)} placeholder="Amount In (ETH)" required />
-//                 <input type="number" value={amountOutMin} onChange={(e) => setAmountOutMin(e.target.value)} placeholder="Minimum Amount Out" required />
-//                 <input type="text" value={to} onChange={(e) => setTo(e.target.value)} placeholder="Recipient Address" required />
-//                 <input type="number" value={deadline} onChange={(e) => setDeadline(e.target.value)} placeholder="Deadline (Timestamp)" required />
-//                 <button type="submit">Swap Tokens</button>
-//             </form>
-//         </div>
-//     );
-// };
-
-// export default App;
-
 import React, { useState, useEffect } from "react";
 import Web3 from "web3";
 import { contractABI, contractAddress } from "./web3/contractConfigs";
-import { createToken, swapEthForTokens,swapTokensForEth,getPool } from "./web3/contractMethods"; // Adjust the path as needed
+import {
+  createToken,
+  swapEthForTokens,
+  swapTokensForEth,
+  getPool,
+} from "./web3/contractMethods";
 import "./App.css";
+import BigNumber from "bignumber.js";
 
 const App = () => {
   const [web3, setWeb3] = useState(null);
@@ -109,7 +23,9 @@ const App = () => {
   const [description, setDescription] = useState("");
   const [extended, setExtended] = useState("");
 
-  const [tokenAddress, setTokenAddress] = useState("0x62787c34BfAC7793eB70f46E1aa04b719b969241");
+  const [tokenAddress, setTokenAddress] = useState(
+    "0x62787c34BfAC7793eB70f46E1aa04b719b969241"
+  );
   const [amountIn, setAmountIn] = useState();
   const [amountOutMin, setAmountOutMin] = useState();
   const [getMethodName, setGetMethodName] = useState("");
@@ -222,54 +138,83 @@ const App = () => {
         const currentEpochTime = Math.floor(Date.now() / 1000);
         const bufferTime = 10 * 60;
         const deadline = currentEpochTime + bufferTime;
-      
+
+        const amountInWei = new BigNumber(amountIn)
+          .times(new BigNumber(10).pow(18))
+          .toString();
+        console.log("Amount In", amountInWei);
+
+        const amountOutMin = await contract.methods
+          .calcAmountOutFromEth(tokenAddress, amountInWei.toString())
+          .call();
+
         const response = await swapEthForTokens(
           tokenAddress,
-          amountIn,
+          amountInWei.toString(),
           amountOutMin,
           walletAddress,
-          deadline,
+          deadline
         );
+
         console.log("Swap successful:", response);
         setResult("Swap successful!");
-        console.log(deadline,"This is deadline");
+        console.log(deadline, "This is deadline");
       } catch (error) {
         console.error("Error swapping tokens:", error);
         setResult("Error swapping tokens");
       }
     } else {
       alert("Please connect the wallet and ensure the contract is loaded.");
-      await connectWallet()
-      alert("wallet connected")
+      await connectWallet();
+      alert("Wallet connected");
     }
   };
-  const handleSwapTokensForEth = async () => {
+
+  const handleSwapTokensForEth = async (e) => {
+    e.preventDefault();
     if (contract) {
-    try {
+      try {
         const currentEpochTime = Math.floor(Date.now() / 1000);
         const bufferTime = 10 * 60;
         const deadline = currentEpochTime + bufferTime;
-        await swapTokensForEth(tokenAddress, T2EamountIn, T2EamountOutMin, walletAddress, deadline);
-        alert('Swap successful!');
-    } catch (error) {
-        console.error('Error swapping tokens for ETH:', error);
-        alert('Failed to swap tokens for ETH. Please check the console for details.');
-    }
-  }else {
+        
+        const T2EamountOutMin = await contract.methods
+          .calcAmountOutFromToken(tokenAddress, T2EamountIn)
+          .call();
+        console.log("T2E Amount out", T2EamountOutMin);
+
+
+        const response= await swapTokensForEth(
+          tokenAddress,
+          T2EamountIn.toString(),
+          T2EamountOutMin,
+          walletAddress,
+          deadline
+        );
+        alert("Swap successful!");
+      } catch (error) {
+        console.error("Error swapping tokens for ETH:", error);
+        alert(
+          "Failed to swap tokens for ETH. Please check the console for details."
+        );
+      }
+    } else {
       alert("Please connect the wallet and ensure the contract is loaded.");
-      await connectWallet()
-      alert("wallet connected")
+      await connectWallet();
+      alert("wallet connected");
     }
-};
-const handleGetPool = async () => {
-  try {
+  };
+  const handleGetPool = async () => {
+    try {
       const pool = await getPool(tokenAddress);
       setPoolInfo(pool);
-  } catch (error) {
+    } catch (error) {
       console.error("Error fetching pool information:", error);
-      alert("Failed to fetch pool information. Please check the console for details.");
-  }
-};
+      alert(
+        "Failed to fetch pool information. Please check the console for details."
+      );
+    }
+  };
 
   return (
     <div className="app-container">
@@ -316,7 +261,6 @@ const handleGetPool = async () => {
         />
         <button type="submit">Create Token</button>
       </form>
-
       <h2>To Call Get Methods</h2>
       <div className="form-group">
         <label>
@@ -333,7 +277,6 @@ const handleGetPool = async () => {
           Contract Get Calls
         </button>
       </div>
-
       <h3>Result:</h3>
       <p className="result-text">{result}</p>
 
@@ -341,46 +284,46 @@ const handleGetPool = async () => {
       <form onSubmit={handleSwapEthForToken}>
         <input
           type="number"
+          step="any"
           value={amountIn}
           onChange={(e) => setAmountIn(Number(e.target.value))}
           placeholder="Amount In (ETH)"
-          required
-        />
-        <input
-          type="number"
-          value={amountOutMin}
-          onChange={(e) => setAmountOutMin(Number(e.target.value))}
-          placeholder="Amount Out (Token)"
           required
         />
         <button type="submit">Swap Tokens</button>
       </form>
 
       <h2>Swap Tokens for ETH</h2>
-            <form onSubmit={(e) => { e.preventDefault(); handleSwapTokensForEth(); }}>
-                <input type="number" value={T2EamountIn} onChange={(e) => setT2EAmountIn(e.target.value)} placeholder="Amount In (Tokens)" required />
-                <input type="number" value={T2EamountOutMin} onChange={(e) => setT2EAmountOutMin(e.target.value)} placeholder="Minimum Amount Out (ETH)" required />
-                <button type="submit">Swap for ETH</button>
-            </form>
+      <form onSubmit={handleSwapTokensForEth}>
+        <input
+          type="number"
+           step="any"
+          value={T2EamountIn}
+          onChange={(e) => setT2EAmountIn(e.target.value)}
+          placeholder="Amount In (Tokens)"
+          required
+        />
+        <button type="submit">Swap for ETH</button>
+      </form>
 
-            <h2>Get Pool Information</h2>
-            <div className="form-group">
-                <input
-                    type="text"
-                    value={tokenAddress}
-                    onChange={(e) => setTokenAddress(e.target.value)}
-                    placeholder="Token Address"
-                    required
-                />
-                <button onClick={handleGetPool}>Get Pool Info</button>
-            </div>
+      <h2>Get Pool Information</h2>
+      <div className="form-group">
+        <input
+          type="text"
+          value={tokenAddress}
+          onChange={(e) => setTokenAddress(e.target.value)}
+          placeholder="Token Address"
+          required
+        />
+        <button onClick={handleGetPool}>Get Pool Info</button>
+      </div>
 
-            {poolInfo && (
-                <div className="pool-info">
-                    <h3>Pool Information:</h3>
-                    <pre>{JSON.stringify(poolInfo, null, 2)}</pre>
-                </div>
-            )}
+      {poolInfo && (
+        <div className="pool-info">
+          <h3>Pool Information:</h3>
+          <pre>{JSON.stringify(poolInfo, null, 2)}</pre>
+        </div>
+      )}
     </div>
   );
 };

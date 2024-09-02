@@ -57,7 +57,6 @@ const swapEthForTokens = async (
 
     const accounts = await web3.eth.getAccounts();
     const account = accounts[0];
-
     try {
       const result = await contract.methods
         .swapEthForTokens(token, amountIn, amountOutMin, to, deadline)
@@ -87,7 +86,7 @@ const swapTokensForEth = async (
 
     const accounts = await web3.eth.getAccounts();
     const account = accounts[0];
-
+    
     try {
       const result = await contract.methods
         .swapTokensForEth(token, amountIn, amountOutMin, to, deadline)
